@@ -27,32 +27,35 @@
 #include <vector>
 
 #if defined(HAVE_VIDEO_ENCODER)
-    #include "experimental/ffmpeg/SkVideoEncoder.h"
-    const char* formats_help = "Output format (png, skp, mp4, or null)";
+#include "experimental/ffmpeg/SkVideoEncoder.h"
+const char* formats_help = "Output format (png, skp, mp4, or null)";
 #else
-    const char* formats_help = "Output format (png, skp, or null)";
+const char* formats_help = "Output format (png, skp, or null)";
 #endif
 
-static DEFINE_string2(input    , i, nullptr, "Input .json file.");
+static DEFINE_string2(input, i, nullptr, "Input .json file.");
 static DEFINE_string2(writePath, w, nullptr, "Output directory.  Frames are names [0-9]{6}.png.");
-static DEFINE_string2(format   , f, "png"  , formats_help);
+static DEFINE_string2(format, f, "png", formats_help);
 
-static DEFINE_double(t0,    0, "Timeline start [0..1].");
-static DEFINE_double(t1,    1, "Timeline stop [0..1].");
-static DEFINE_double(fps,   0, "Decode frames per second (default is animation native fps).");
+static DEFINE_double(t0, 0, "Timeline start [0..1].");
+static DEFINE_double(t1, 1, "Timeline stop [0..1].");
+static DEFINE_double(fps, 0, "Decode frames per second (default is animation native fps).");
 
-static DEFINE_int(width , 800, "Render width.");
+static DEFINE_int(width, 800, "Render width.");
 static DEFINE_int(height, 600, "Render height.");
-static DEFINE_int(threads,  0, "Number of worker threads (0 -> cores count).");
+static DEFINE_int(threads, 0, "Number of worker threads (0 -> cores count).");
+
+static DEFINE_int_2(red, r, 255, "Background red component");
+static DEFINE_int_2(blue, b, 178, "Background blue component");
+static DEFINE_int_2(green, g, 102, "Background green component");
+static DEFINE_int_2(alpha, a, 255, "Background alpha component");
 
 namespace {
 
-static constexpr SkColor kClearColor = SK_ColorWHITE;
-
 std::unique_ptr<SkFILEWStream> MakeFrameStream(size_t idx, const char* ext) {
     const auto frame_file = SkStringPrintf("0%06zu.%s", idx, ext);
-    auto stream = std::make_unique<SkFILEWStream>(SkOSPath::Join(FLAGS_writePath[0],
-                                                                   frame_file.c_str()).c_str());
+    auto stream = std::make_unique<SkFILEWStream>(
+            SkOSPath::Join(FLAGS_writePath[0], frame_file.c_str()).c_str());
     if (!stream->isValid()) {
         return nullptr;
     }
@@ -84,12 +87,13 @@ public:
     }
 
 private:
-    PNGSink(sk_sp<SkSurface> surface, const SkMatrix& scale_matrix)
-        : fSurface(std::move(surface)) {
+    PNGSink(sk_sp<SkSurface> surface, const SkMatrix& scale_matrix) : fSurface(std::move(surface)) {
         fSurface->getCanvas()->concat(scale_matrix);
     }
 
     SkCanvas* beginFrame(size_t) override {
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+
         auto* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
         return canvas;
@@ -103,13 +107,12 @@ private:
 
         // Set encoding options to favor speed over size.
         SkPngEncoder::Options options;
-        options.fZLibLevel   = 1;
+        options.fZLibLevel = 1;
         options.fFilterFlags = SkPngEncoder::FilterFlag::kNone;
 
         sk_sp<SkImage> img = fSurface->makeImageSnapshot();
         SkPixmap pixmap;
-        return img->peekPixels(&pixmap)
-            && SkPngEncoder::Encode(stream.get(), pixmap, options);
+        return img->peekPixels(&pixmap) && SkPngEncoder::Encode(stream.get(), pixmap, options);
     }
 
     const sk_sp<SkSurface> fSurface;
@@ -122,8 +125,7 @@ public:
     }
 
 private:
-    explicit SKPSink(const SkMatrix& scale_matrix)
-        : fScaleMatrix(scale_matrix) {}
+    explicit SKPSink(const SkMatrix& scale_matrix) : fScaleMatrix(scale_matrix) {}
 
     SkCanvas* beginFrame(size_t) override {
         auto canvas = fRecorder.beginRecording(FLAGS_width, FLAGS_height);
@@ -141,7 +143,7 @@ private:
         return true;
     }
 
-    const SkMatrix    fScaleMatrix;
+    const SkMatrix fScaleMatrix;
     SkPictureRecorder fRecorder;
 };
 
@@ -159,19 +161,19 @@ public:
 
 private:
     NullSink(sk_sp<SkSurface> surface, const SkMatrix& scale_matrix)
-        : fSurface(std::move(surface)) {
+            : fSurface(std::move(surface)) {
         fSurface->getCanvas()->concat(scale_matrix);
     }
 
     SkCanvas* beginFrame(size_t) override {
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+
         auto* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
         return canvas;
     }
 
-    bool endFrame(size_t) override {
-        return true;
-    }
+    bool endFrame(size_t) override { return true; }
 
     const sk_sp<SkSurface> fSurface;
 };
@@ -180,11 +182,13 @@ static std::vector<std::promise<sk_sp<SkImage>>> gMP4Frames;
 
 struct MP4Sink final : public Sink {
     explicit MP4Sink(const SkMatrix& scale_matrix)
-        : fSurface(SkSurface::MakeRasterN32Premul(FLAGS_width, FLAGS_height)) {
+            : fSurface(SkSurface::MakeRasterN32Premul(FLAGS_width, FLAGS_height)) {
         fSurface->getCanvas()->concat(scale_matrix);
     }
 
     SkCanvas* beginFrame(size_t) override {
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+
         SkCanvas* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
         return canvas;
@@ -204,47 +208,44 @@ struct MP4Sink final : public Sink {
 class Logger final : public skottie::Logger {
 public:
     struct LogEntry {
-        SkString fMessage,
-                 fJSON;
+        SkString fMessage, fJSON;
     };
 
     void log(skottie::Logger::Level lvl, const char message[], const char json[]) override {
         auto& log = lvl == skottie::Logger::Level::kError ? fErrors : fWarnings;
-        log.push_back({ SkString(message), json ? SkString(json) : SkString() });
+        log.push_back({SkString(message), json ? SkString(json) : SkString()});
     }
 
     void report() const {
-        SkDebugf("Animation loaded with %lu error%s, %lu warning%s.\n",
-                 fErrors.size(), fErrors.size() == 1 ? "" : "s",
-                 fWarnings.size(), fWarnings.size() == 1 ? "" : "s");
+        SkDebugf("Animation loaded with %lu error%s, %lu warning%s.\n", fErrors.size(),
+                 fErrors.size() == 1 ? "" : "s", fWarnings.size(),
+                 fWarnings.size() == 1 ? "" : "s");
 
         const auto& show = [](const LogEntry& log, const char prefix[]) {
             SkDebugf("%s%s", prefix, log.fMessage.c_str());
-            if (!log.fJSON.isEmpty())
-                SkDebugf(" : %s", log.fJSON.c_str());
+            if (!log.fJSON.isEmpty()) SkDebugf(" : %s", log.fJSON.c_str());
             SkDebugf("\n");
         };
 
-        for (const auto& err : fErrors)   show(err, "  !! ");
+        for (const auto& err : fErrors) show(err, "  !! ");
         for (const auto& wrn : fWarnings) show(wrn, "  ?? ");
     }
 
 private:
-    std::vector<LogEntry> fErrors,
-                          fWarnings;
+    std::vector<LogEntry> fErrors, fWarnings;
 };
 
 std::unique_ptr<Sink> MakeSink(const char* fmt, const SkMatrix& scale_matrix) {
-    if (0 == strcmp(fmt,  "png")) return  PNGSink::Make(scale_matrix);
-    if (0 == strcmp(fmt,  "skp")) return  SKPSink::Make(scale_matrix);
+    if (0 == strcmp(fmt, "png")) return PNGSink::Make(scale_matrix);
+    if (0 == strcmp(fmt, "skp")) return SKPSink::Make(scale_matrix);
     if (0 == strcmp(fmt, "null")) return NullSink::Make(scale_matrix);
-    if (0 == strcmp(fmt,  "mp4")) return std::make_unique<MP4Sink>(scale_matrix);
+    if (0 == strcmp(fmt, "mp4")) return std::make_unique<MP4Sink>(scale_matrix);
 
     SkDebugf("Unknown format: %s\n", FLAGS_format[0]);
     return nullptr;
 }
 
-} // namespace
+}  // namespace
 
 extern bool gSkUseThreadLocalStrikeCaches_IAcknowledgeThisIsIncrediblyExperimental;
 
@@ -263,12 +264,12 @@ int main(int argc, char** argv) {
     }
 
     auto logger = sk_make_sp<Logger>();
-    auto     rp = skresources::CachingResourceProvider::Make(
-                    skresources::DataURIResourceProviderProxy::Make(
-                      skresources::FileResourceProvider::Make(SkOSPath::Dirname(FLAGS_input[0]),
-                                                                /*predecode=*/true),
-                      /*predecode=*/true));
-    auto data   = SkData::MakeFromFileName(FLAGS_input[0]);
+    auto rp = skresources::CachingResourceProvider::Make(
+            skresources::DataURIResourceProviderProxy::Make(
+                    skresources::FileResourceProvider::Make(SkOSPath::Dirname(FLAGS_input[0]),
+                                                            /*predecode=*/true),
+                    /*predecode=*/true));
+    auto data = SkData::MakeFromFileName(FLAGS_input[0]);
     auto precomp_interceptor =
             sk_make_sp<skottie_utils::ExternalAnimationPrecompInterceptor>(rp, "__");
 
@@ -280,10 +281,8 @@ int main(int argc, char** argv) {
     // Instantiate an animation on the main thread for two reasons:
     //   - we need to know its duration upfront
     //   - we want to only report parsing errors once
-    auto anim = skottie::Animation::Builder()
-            .setLogger(logger)
-            .setResourceProvider(rp)
-            .make(static_cast<const char*>(data->data()), data->size());
+    auto anim = skottie::Animation::Builder().setLogger(logger).setResourceProvider(rp).make(
+            static_cast<const char*>(data->data()), data->size());
     if (!anim) {
         SkDebugf("Could not parse animation: '%s'.\n", FLAGS_input[0]);
         return 1;
@@ -294,11 +293,9 @@ int main(int argc, char** argv) {
                                                    SkMatrix::kCenter_ScaleToFit);
     logger->report();
 
-    const auto t0 = SkTPin(FLAGS_t0, 0.0, 1.0),
-               t1 = SkTPin(FLAGS_t1,  t0, 1.0),
-       native_fps = anim->fps(),
-           frame0 = anim->duration() * t0 * native_fps,
-         duration = anim->duration() * (t1 - t0);
+    const auto t0 = SkTPin(FLAGS_t0, 0.0, 1.0), t1 = SkTPin(FLAGS_t1, t0, 1.0),
+               native_fps = anim->fps(), frame0 = anim->duration() * t0 * native_fps,
+               duration = anim->duration() * (t1 - t0);
 
     double fps = FLAGS_fps > 0 ? FLAGS_fps : native_fps;
     if (fps <= 0) {
@@ -382,8 +379,7 @@ int main(int argc, char** argv) {
         }
         sk_sp<SkData> mp4 = enc.endRecording();
 
-        SkFILEWStream{FLAGS_writePath[0]}
-            .write(mp4->data(), mp4->size());
+        SkFILEWStream{FLAGS_writePath[0]}.write(mp4->data(), mp4->size());
 
         // If everything's going well, the first frame should account for the most,
         // and ideally nearly all, starvation.
@@ -391,15 +387,15 @@ int main(int argc, char** argv) {
         std::sort(starved_ms.begin(), starved_ms.end());
         double sum = std::accumulate(starved_ms.begin(), starved_ms.end(), 0);
         SkDebugf("starved min %gms, med %gms, avg %gms, max %gms, sum %gms, first %gms (%s)\n",
-                 starved_ms[0], starved_ms[frame_count/2], sum/frame_count, starved_ms.back(), sum,
-                 first, first == starved_ms.back() ? "ok" : "BAD");
+                 starved_ms[0], starved_ms[frame_count / 2], sum / frame_count, starved_ms.back(),
+                 sum, first, first == starved_ms.back() ? "ok" : "BAD");
     }
 #endif
     tg.wait();
 
     std::sort(frames_ms.begin(), frames_ms.end());
     double sum = std::accumulate(frames_ms.begin(), frames_ms.end(), 0);
-    SkDebugf("frame time min %gms, med %gms, avg %gms, max %gms, sum %gms\n",
-             frames_ms[0], frames_ms[frame_count/2], sum/frame_count, frames_ms.back(), sum);
+    SkDebugf("frame time min %gms, med %gms, avg %gms, max %gms, sum %gms\n", frames_ms[0],
+             frames_ms[frame_count / 2], sum / frame_count, frames_ms.back(), sum);
     return 0;
 }
