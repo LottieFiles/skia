@@ -30,10 +30,10 @@ static DEFINE_bool2(loop, l, false, "loop mode for profiling");
 static DEFINE_int(set_dst_width, 0, "set destination width (height will be computed)");
 static DEFINE_bool2(gpu, g, false, "use GPU for rendering");
 
-static DEFINE_int_2(red, r, 255, "Background red component");
-static DEFINE_int_2(blue, b, 255, "Background blue component");
-static DEFINE_int_2(green, g, 255, "Background green component");
-static DEFINE_int_2(alpha, a, 255, "Background alpha component");
+static DEFINE_int_2(red, R, 255, "Background red component");
+static DEFINE_int_2(green, G, 255, "Background green component");
+static DEFINE_int_2(blue, B, 255, "Background blue component");
+static DEFINE_int_2(alpha, A, 255, "Background alpha component");
 
 static void produce_frame(SkSurface* surf, skottie::Animation* anim, double frame, SkColor color) {
     anim->seekFrame(frame);
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     CommandLineFlags::SetUsage("Converts skottie to a mp4");
     CommandLineFlags::Parse(argc, argv);
 
-    SkColor backgroundColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+    SkColor backgroundColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_green, FLAGS_blue);
 
     if (FLAGS_input.count() == 0) {
         SkDebugf("-i input_file.json argument required\n");

@@ -45,10 +45,10 @@ static DEFINE_int(width, 800, "Render width.");
 static DEFINE_int(height, 600, "Render height.");
 static DEFINE_int(threads, 0, "Number of worker threads (0 -> cores count).");
 
-static DEFINE_int_2(red, r, 255, "Background red component");
-static DEFINE_int_2(blue, b, 178, "Background blue component");
-static DEFINE_int_2(green, g, 102, "Background green component");
-static DEFINE_int_2(alpha, a, 255, "Background alpha component");
+static DEFINE_int_2(red, R, 255, "Background red component");
+static DEFINE_int_2(blue, B, 255, "Background blue component");
+static DEFINE_int_2(green, G, 255, "Background green component");
+static DEFINE_int_2(alpha, A, 255, "Background alpha component");
 
 namespace {
 
@@ -92,7 +92,7 @@ private:
     }
 
     SkCanvas* beginFrame(size_t) override {
-        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_green, FLAGS_blue);
 
         auto* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
@@ -166,7 +166,7 @@ private:
     }
 
     SkCanvas* beginFrame(size_t) override {
-        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_green, FLAGS_blue);
 
         auto* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
@@ -187,7 +187,7 @@ struct MP4Sink final : public Sink {
     }
 
     SkCanvas* beginFrame(size_t) override {
-        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_blue, FLAGS_green);
+        SkColor kClearColor = SkColorSetARGB(FLAGS_alpha, FLAGS_red, FLAGS_green, FLAGS_blue);
 
         SkCanvas* canvas = fSurface->getCanvas();
         canvas->clear(kClearColor);
